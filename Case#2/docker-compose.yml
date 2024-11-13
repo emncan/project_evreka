@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbcase2
+    ports:
+      - "5438:5432"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    
+  fastapi:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - rabbitmq
+
+  celery:
+    build: .
+    command: celery -A app.tasks worker --loglevel=info
+    depends_on:
+      - rabbitmq
+      - db
+
+  tcp_server:
+    build: .
+    command: python app/tcp_server.py
+    ports:
+      - "12345:12345"
+    environment:
+      - PYTHONPATH=/usr/src/app
+    depends_on:
+      - rabbitmq
